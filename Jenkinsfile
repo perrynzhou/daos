@@ -138,64 +138,6 @@ pipeline {
                 cancelPreviousBuilds()
             }
         }
-        stage('Pre-build') {
-            when {
-                beforeAgent true
-                allOf {
-                    not { branch 'weekly-testing' }
-                    expression { env.CHANGE_TARGET != 'weekly-testing' }
-                    expression { env.QUICKBUILD != 'true' }
-                }
-            }
-            parallel {
-                stage('checkpatch') {
-                    agent {
-                        dockerfile {
-                            filename 'Dockerfile.centos.7'
-                            dir 'utils/docker'
-                            label 'docker_runner'
-                            additionalBuildArgs "-t ${sanitized_JOB_NAME}-centos7 " + '$BUILDARGS'
-                        }
-                    }
-                    steps {
-                        checkPatch user: GITHUB_USER_USR,
-                                   password: GITHUB_USER_PSW,
-                                   ignored_files: "src/control/vendor/*:src/include/daos/*.pb-c.h:src/common/*.pb-c.[ch]:src/mgmt/*.pb-c.[ch]:src/iosrv/*.pb-c.[ch]:src/security/*.pb-c.[ch]:*.crt:*.pem"
-                    }
-                    post {
-                        always {
-                            archiveArtifacts artifacts: 'pylint.log', allowEmptyArchive: true
-                            /* when JENKINS-39203 is resolved, can probably use stepResult
-                               here and remove the remaining post conditions
-                               stepResult name: env.STAGE_NAME,
-                                          context: 'build/' + env.STAGE_NAME,
-                                          result: ${currentBuild.currentResult}
-                            */
-                        }
-                        /* temporarily moved into stepResult due to JENKINS-39203
-                        success {
-                            githubNotify credentialsId: 'daos-jenkins-commit-status',
-                                         description: env.STAGE_NAME,
-                                         context: 'pre-build/' + env.STAGE_NAME,
-                                         status: 'SUCCESS'
-                        }
-                        unstable {
-                            githubNotify credentialsId: 'daos-jenkins-commit-status',
-                                         description: env.STAGE_NAME,
-                                         context: 'pre-build/' + env.STAGE_NAME,
-                                         status: 'FAILURE'
-                        }
-                        failure {
-                            githubNotify credentialsId: 'daos-jenkins-commit-status',
-                                         description: env.STAGE_NAME,
-                                         context: 'pre-build/' + env.STAGE_NAME,
-                                         status: 'ERROR'
-                        }
-                        */
-                    }
-                }
-            }
-        }
         stage('Build') {
             /* Don't use failFast here as whilst it avoids using extra resources
              * and gives faster results for PRs it's also on for master where we
@@ -1170,35 +1112,6 @@ pipeline {
                                          status: 'ERROR'
                         }
                         */
-                    }
-                }
-                stage('Test CentOS 7 RPMs') {
-                    when {
-                        beforeAgent true
-                        allOf {
-                            not { branch 'weekly-testing' }
-                            expression { env.CHANGE_TARGET != 'weekly-testing' }
-                            expression { return env.QUICKBUILD == '1' }
-                        }
-                    }
-                    agent {
-                        label 'ci_vm1'
-                    }
-                    steps {
-                        provisionNodes NODELIST: env.NODELIST,
-                                       node_count: 1,
-                                       snapshot: true,
-                                       inst_repos: el7_daos_repos
-                        catchError(stageResult: 'UNSTABLE', buildResult: 'SUCCESS') {
-                            runTest script: "${rpm_test_pre}" +
-                                         '''sudo yum -y install daos-client
-                                            sudo yum -y history rollback last-1
-                                            sudo yum -y install daos-server
-                                            sudo yum -y install daos-tests\n''' +
-                                            "${rpm_test_daos_test}" + '"',
-                                    junit_files: null,
-                                    failure_artifacts: env.STAGE_NAME, ignore_failure: true
-                        }
                     }
                 }
             }
