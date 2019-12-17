@@ -55,6 +55,17 @@ func cfgHasBdev(cfg *Configuration) bool {
 	return false
 }
 
+func instanceShmID(idx int) int {
+	return os.Getpid() + idx + 1
+}
+
+func min(x, y int) int {
+	if x < y {
+		return x
+	}
+	return y
+}
+
 // define supported maximum number of I/O servers
 const maxIoServers = 2
 
@@ -91,10 +102,30 @@ func Start(log *logging.LeveledLogger, cfg *Configuration) error {
 		return errors.New("NVMe support only available with single server in this release")
 	}
 
+	hugePages, err := getHugePageInfo()
+	if err != nil {
+		return errors.Wrap(err, "unable to read system hugepage info")
+	}
+
+	// Don't bother with these checks if there aren't any block devices configured.
+	if cfgHasBdev(cfg) {
+		if hugePages.Free != hugePages.Total {
+			// Not sure if this should be an error, per se, but I think we want to display it
+			// on the console to let the admin know that there might be something that needs
+			// to be cleaned up?
+			log.Errorf("free hugepages does not match total (%d != %d)", hugePages.Free, hugePages.Total)
+		}
+
+		if hugePages.FreeMB() == 0 {
+			// Is this appropriate? Or should we bomb out?
+			log.Error("no free hugepages -- NVMe performance may suffer")
+		}
+	}
+
 	bdevProvider := bdev.DefaultProvider(log)
 	// temporary scaffolding -- remove when bdev forwarding to pbin works
-	if os.Geteuid() == 0 {
-		if err := bdevProvider.Init(bdev.InitRequest{SPDKShmID: cfg.NvmeShmID}); err != nil {
+	if os.Geteuid() == 0 && cfgHasBdev(cfg) {
+		if err := bdevProvider.Init(bdev.InitRequest{SPDKShmID: instanceShmID(0)}); err != nil {
 			return errors.Wrap(err, "failed to init SPDK")
 		}
 	}
@@ -108,6 +139,17 @@ func Start(log *logging.LeveledLogger, cfg *Configuration) error {
 		if i+1 > maxIoServers {
 			break
 		}
+
+		// If we have multiple I/O instances with block devices, then we need to apportion
+		// the hugepage memory among the instances.
+		if len(cfg.Servers) > 1 && cfgHasBdev(cfg) {
+			srvCfg.Storage.Bdev.MemSize = hugePages.FreeMB() / min(len(cfg.Servers), maxIoServers)
+		}
+
+		// Each instance must have a unique shmid in order to run as SPDK primary.
+		// Use a stable identifier that's easy to construct elsewhere if we don't
+		// have access to the instance configuration.
+		srvCfg.Storage.Bdev.ShmID = instanceShmID(i)
 
 		bp, err := bdev.NewClassProvider(log, srvCfg.Storage.SCM.MountPoint, &srvCfg.Storage.Bdev)
 		if err != nil {
