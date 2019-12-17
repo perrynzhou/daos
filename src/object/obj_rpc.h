@@ -153,6 +153,7 @@ struct obj_iod_array {
 	((uint32_t)		(orw_flags)		CRT_VAR) \
 	((daos_key_t)		(orw_dkey)		CRT_VAR) \
 	((struct obj_iod_array)	(orw_iod_array)		CRT_VAR)   \
+	((daos_csum_buf_t)	(orw_dkey_csum)		CRT_VAR) \
 	((struct dtx_id)	(orw_dti_cos)		CRT_ARRAY) \
 	((d_sg_list_t)		(orw_sgls)		CRT_ARRAY) \
 	((crt_bulk_t)		(orw_bulks)		CRT_ARRAY) \
@@ -204,6 +205,7 @@ CRT_RPC_DECLARE(obj_fetch,	DAOS_ISEQ_OBJ_RW, DAOS_OSEQ_OBJ_RW)
 	((daos_anchor_t)	(oeo_akey_anchor)	CRT_VAR) \
 	((daos_key_desc_t)	(oeo_kds)		CRT_ARRAY) \
 	((d_sg_list_t)		(oeo_sgl)		CRT_VAR) \
+	((d_iov_t)		(oeo_csum_iov)		CRT_VAR) \
 	((daos_recx_t)		(oeo_recxs)		CRT_ARRAY) \
 	((daos_epoch_range_t)	(oeo_eprs)		CRT_ARRAY)
 

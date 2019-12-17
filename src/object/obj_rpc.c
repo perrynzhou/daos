@@ -250,6 +250,7 @@ crt_proc_struct_obj_io_desc(crt_proc_t proc, struct obj_io_desc *oiod)
 #define IOD_REC_EXIST	(1 << 0)
 #define IOD_CSUM_EXIST	(1 << 1)
 #define IOD_EPRS_EXIST	(1 << 2)
+#define IOD_KCSUM_EXIST	(1 << 3)
 static int
 crt_proc_daos_iod_t(crt_proc_t proc, crt_proc_op_t proc_op, daos_iod_t *dvi,
 		    struct obj_io_desc *oiod)
@@ -265,10 +266,6 @@ crt_proc_daos_iod_t(crt_proc_t proc, crt_proc_op_t proc_op, daos_iod_t *dvi,
 	}
 
 	rc = crt_proc_d_iov_t(proc, &dvi->iod_name);
-	if (rc != 0)
-		return rc;
-
-	rc = crt_proc_daos_csum_buf_t(proc, &dvi->iod_kcsum);
 	if (rc != 0)
 		return rc;
 
@@ -313,6 +310,8 @@ crt_proc_daos_iod_t(crt_proc_t proc, crt_proc_op_t proc_op, daos_iod_t *dvi,
 #endif
 
 	if (proc_op == CRT_PROC_ENCODE || proc_op == CRT_PROC_FREE) {
+		if (dvi->iod_kcsum != NULL)
+			existing_flags |= IOD_KCSUM_EXIST;
 		if (dvi->iod_type == DAOS_IOD_ARRAY && dvi->iod_recxs != NULL)
 			existing_flags |= IOD_REC_EXIST;
 		if (dvi->iod_csums != NULL)
@@ -326,6 +325,12 @@ crt_proc_daos_iod_t(crt_proc_t proc, crt_proc_op_t proc_op, daos_iod_t *dvi,
 		return -DER_HG;
 
 	if (proc_op == CRT_PROC_DECODE) {
+		if (existing_flags & IOD_KCSUM_EXIST) {
+			D_ALLOC_ARRAY(dvi->iod_kcsum, 1);
+			if (dvi->iod_kcsum == NULL)
+				D_GOTO(free, rc = -DER_NOMEM);
+		}
+
 		if (existing_flags & IOD_REC_EXIST) {
 			D_ALLOC_ARRAY(dvi->iod_recxs, nr);
 			if (dvi->iod_recxs == NULL)
@@ -342,6 +347,14 @@ crt_proc_daos_iod_t(crt_proc_t proc, crt_proc_op_t proc_op, daos_iod_t *dvi,
 			D_ALLOC_ARRAY(dvi->iod_eprs, nr);
 			if (dvi->iod_eprs == NULL)
 				D_GOTO(free, rc = -DER_NOMEM);
+		}
+	}
+	if (existing_flags & IOD_KCSUM_EXIST) {
+		rc = crt_proc_daos_csum_buf_t(proc, dvi->iod_kcsum);
+		if (rc != 0) {
+			if (proc_op == CRT_PROC_DECODE)
+				D_GOTO(free, rc);
+			return rc;
 		}
 	}
 
@@ -390,6 +403,8 @@ crt_proc_daos_iod_t(crt_proc_t proc, crt_proc_op_t proc_op, daos_iod_t *dvi,
 
 	if (proc_op == CRT_PROC_FREE) {
 free:
+		if (dvi->iod_kcsum != NULL)
+			D_FREE(dvi->iod_kcsum);
 		if (dvi->iod_recxs != NULL)
 			D_FREE(dvi->iod_recxs);
 		if (dvi->iod_csums != NULL)

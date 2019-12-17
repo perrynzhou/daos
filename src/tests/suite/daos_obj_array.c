@@ -64,7 +64,7 @@ byte_array_simple_stack(void **state)
 
 	/** init I/O descriptor */
 	d_iov_set(&iod.iod_name, "akey", strlen("akey"));
-	dcb_set_null(&iod.iod_kcsum);
+	iod.iod_kcsum = NULL;
 	iod.iod_nr	= 1;
 	iod.iod_size	= 1;
 	recx.rx_idx	= 0;
@@ -138,7 +138,7 @@ array_simple(void **state)
 
 	/** init I/O descriptor */
 	d_iov_set(&iod.iod_name, "akey", strlen("akey"));
-	dcb_set_null(&iod.iod_kcsum);
+	iod.iod_kcsum = NULL;
 	iod.iod_nr	= 1;
 	iod.iod_size	= arg->size;
 	srand(time(NULL) + arg->size);
@@ -221,7 +221,7 @@ array_partial(void **state)
 
 	/** init I/O descriptor */
 	d_iov_set(&iod.iod_name, "akey", strlen("akey"));
-	dcb_set_null(&iod.iod_kcsum);
+	iod.iod_kcsum = NULL;
 	iod.iod_nr	= 1;
 	iod.iod_size	= arg->size;
 	recx.rx_idx	= 0;
@@ -375,7 +375,7 @@ replicator(void **state)
 
 	/** init I/O descriptor */
 	d_iov_set(&iod.iod_name, "akey", strlen("akey"));
-	dcb_set_null(&iod.iod_kcsum);
+	iod.iod_kcsum = NULL;
 	iod.iod_nr	= 1;
 	iod.iod_size	= 1;
 	recx.rx_idx	= 27136;
@@ -453,7 +453,7 @@ read_empty(void **state)
 
 	/** init I/O descriptor */
 	d_iov_set(&iod.iod_name, "akey", strlen("akey"));
-	dcb_set_null(&iod.iod_kcsum);
+	iod.iod_kcsum = NULL;
 	iod.iod_nr	= 1;
 	iod.iod_size	= 1;
 	recx.rx_idx	= 0;
@@ -558,7 +558,7 @@ array_dkey_punch_enumerate(void **state)
 
 	/** init I/O descriptor */
 	d_iov_set(&iod.iod_name, "akey", strlen("akey"));
-	dcb_set_null(&iod.iod_kcsum);
+	iod.iod_kcsum = NULL;
 	iod.iod_nr	= 1;
 	iod.iod_size	= 1;
 	recx.rx_nr	= SM_BUF_LEN;
@@ -644,7 +644,7 @@ array_akey_punch_enumerate(void **state)
 	d_iov_set(&dkey, "dkey", strlen("dkey"));
 
 	/** init I/O descriptor */
-	dcb_set_null(&iod.iod_kcsum);
+	iod.iod_kcsum = NULL;
 	iod.iod_nr	= 1;
 	iod.iod_size	= 1;
 	recx.rx_nr	= SM_BUF_LEN;
@@ -749,7 +749,7 @@ array_recx_punch_enumerate(void **state)
 
 	/** init I/O descriptor */
 	d_iov_set(&iod.iod_name, "akey", strlen("akey"));
-	dcb_set_null(&iod.iod_kcsum);
+	iod.iod_kcsum = NULL;
 	iod.iod_nr	= 1;
 	iod.iod_size	= 1;
 	recx.rx_nr	= SM_BUF_LEN;
@@ -858,7 +858,7 @@ array_recx_read_incomplete(void **state)
 
 	/** init I/O descriptor */
 	d_iov_set(&iod.iod_name, "akey", strlen("akey"));
-	dcb_set_null(&iod.iod_kcsum);
+	dcb_set_null(iod.iod_kcsum);
 	iod.iod_nr	= 1;
 	iod.iod_size	= 1;
 	recx[0].rx_nr	= 1;
@@ -876,7 +876,7 @@ array_recx_read_incomplete(void **state)
 	print_message("Fetching all records...\n");
 	memcpy(rbuf, rbuf_orig, sizeof(rbuf));
 	d_iov_set(&sg_iov[0], rbuf, sizeof(rbuf));
-	dcb_set_null(&iod.iod_kcsum);
+	dcb_set_null(iod.iod_kcsum);
 	recx[0].rx_idx = 0;
 	recx[0].rx_nr	= 10;
 	rc = daos_obj_fetch(oh, DAOS_TX_NONE, &dkey, 1, &iod, &sgl, NULL, NULL);
@@ -893,7 +893,7 @@ array_recx_read_incomplete(void **state)
 	print_message("Fetching every other record to contiguous buffer...\n");
 	memcpy(rbuf, rbuf_orig, sizeof(rbuf));
 	d_iov_set(&sg_iov[0], rbuf, SM_BUF_LEN/2);
-	dcb_set_null(&iod.iod_kcsum);
+	dcb_set_null(iod.iod_kcsum);
 	iod.iod_nr = SM_BUF_LEN/2;
 	for (i = 0; i < SM_BUF_LEN/2; i++) {
 		recx[i].rx_idx = i * 2;
@@ -914,7 +914,7 @@ array_recx_read_incomplete(void **state)
 	print_message("Fetching every other record to noncontiguous buffer\n");
 	memcpy(rbuf, rbuf_orig, sizeof(rbuf));
 	sgl.sg_nr = SM_BUF_LEN/2;
-	dcb_set_null(&iod.iod_kcsum);
+	dcb_set_null(iod.iod_kcsum);
 	for (i = 0; i < SM_BUF_LEN/2; i++) {
 		/* set so it matches the original index */
 		d_iov_set(&sg_iov[i], &rbuf[i * 2], 1);

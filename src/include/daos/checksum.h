@@ -28,6 +28,8 @@
 #include <daos_obj.h>
 #include <daos_prop.h>
 
+#define	DCB_NO_CSUM_CHUNK -1
+
 /**
  * -----------------------------------------------------------
  * Container Property Knowledge
@@ -195,7 +197,7 @@ daos_csummer_csum_compare(struct daos_csummer *obj, uint8_t *a,
  * Using the data from the sgl, calculates the checksums
  * for each extent. Will allocate memory for the daos_csum_buf_t structures and
  * the memory buffer for the checksums with in the daos_csum_buf_t.
- * When the checksums are not needed anymore, daos_csummer_destroy_csum_buf
+ * When the checksums are not needed anymore, \daos_csummer_free_dcbs
  * should be called on each daos_csum_buf_t
  *
  * @param[in]	obj		the daos_csummer object
@@ -217,6 +219,20 @@ daos_csummer_calc(struct daos_csummer *obj, d_sg_list_t *sgl,
 		  daos_iod_t *iod, daos_csum_buf_t **pcsum_bufs);
 
 /**
+ * Calculate a checksum for a daos key. Memory will be allocated for the
+ * checksum buffer which must be freed by calling free_dcbs.
+ *
+ * @param[in]	csummer		the daos_csummer object
+ * @param[in]	key		Key from which the checksum is derived
+ * @param[out]	p_dcb		checksum buffer created
+ *
+ * @return			0 for success, or an error code
+ */
+int
+daos_csummer_calc_key(struct daos_csummer *csummer, daos_key_t *key,
+		      daos_csum_buf_t **p_dcb);
+
+/**
  * Using the data from the sgl, calculates the checksums for each extent and
  * then compare the calculated checksum with the checksum held in the iod to
  * verify the data is still valid. If a difference in checksum is found, an
@@ -229,11 +245,24 @@ daos_csummer_calc(struct daos_csummer *obj, d_sg_list_t *sgl,
  *			length of the sgl should be the same as the sum
  *			of the lengths of all recxs
  *
- * @return		0 for success, -DER_IO if corruption is detected
+ * @return		0 for success, -DER_CSUM if corruption is detected
  */
 int
-daos_csummer_verify(struct daos_csummer *obj,
-		    daos_iod_t *iod, d_sg_list_t *sgl);
+daos_csummer_verify_iod(struct daos_csummer *obj,
+			daos_iod_t *iod, d_sg_list_t *sgl);
+
+/**
+ * Verify a single buffer to a checksum
+ *
+ * @param obj		the daos_csummer obj
+ * @param iov		I/O vector that describes the buffer
+ * @param dcb		The daos_csum_buf_t that describes the checksum
+ *
+ * @return		0 for success, -DER_CSUM if corruption is detected
+ */
+int
+daos_csummer_verify_key(struct daos_csummer *obj, daos_key_t *iov,
+			daos_csum_buf_t *dcb);
 
 /**
  * Allocate memory for a list of  daos_csum_buf_t structures and the

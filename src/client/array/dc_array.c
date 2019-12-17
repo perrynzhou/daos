@@ -480,7 +480,7 @@ set_md_params(struct md_params *params)
 	/** set IOD */
 	params->akey_str = '0';
 	d_iov_set(&params->iod.iod_name, &params->akey_str, 1);
-	dcb_set_null(&params->iod.iod_kcsum);
+	params->iod.iod_kcsum	= NULL;
 	params->iod.iod_nr	= 1;
 	params->iod.iod_size	= sizeof(params->md_vals);
 	params->iod.iod_recxs	= NULL;
@@ -1294,7 +1294,7 @@ dc_array_io(daos_handle_t array_oh, daos_handle_t th,
 
 		/* set descriptor for KV object */
 		d_iov_set(&iod->iod_name, &params->akey_str, 1);
-		iod->iod_kcsum = null_csum;
+		iod->iod_kcsum = NULL;
 		iod->iod_nr = 0;
 		iod->iod_csums = NULL;
 		iod->iod_eprs = NULL;
@@ -1766,7 +1766,7 @@ punch_extent(daos_handle_t oh, daos_handle_t th, daos_size_t dkey_val,
 
 	/* set descriptor for KV object */
 	d_iov_set(&iod->iod_name, &params->akey_str, 1);
-	iod->iod_kcsum = null_csum;
+	iod->iod_kcsum = NULL;
 	iod->iod_nr = 1;
 	iod->iod_csums = NULL;
 	iod->iod_eprs = NULL;
@@ -1924,7 +1924,7 @@ check_record(daos_handle_t oh, daos_handle_t th, daos_size_t dkey_val,
 	/* set descriptor for KV object */
 	d_iov_set(&iod->iod_name, &params->akey_str, 1);
 	dcb_set_null(&null_csum);
-	iod->iod_kcsum = null_csum;
+	iod->iod_kcsum = NULL;
 	iod->iod_nr = 1;
 	iod->iod_csums = NULL;
 	iod->iod_eprs = NULL;
@@ -2010,7 +2010,7 @@ add_record(daos_handle_t oh, daos_handle_t th, struct set_size_props *props)
 
 	/* set descriptor for KV object */
 	d_iov_set(&iod->iod_name, &params->akey_str, 1);
-	iod->iod_kcsum = null_csum;
+	iod->iod_kcsum = NULL;
 	iod->iod_nr = 1;
 	iod->iod_csums = NULL;
 	iod->iod_eprs = NULL;

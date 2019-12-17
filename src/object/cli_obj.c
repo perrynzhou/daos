@@ -2115,8 +2115,7 @@ obj_list_dkey_cb(tse_task_t *task, struct obj_list_arg *arg, unsigned int opc)
 }
 
 static void
-obj_update_csum_destroy(const struct dc_object *obj,
-			     const daos_obj_update_t *args)
+obj_rw_csum_destroy(const struct dc_object *obj, daos_obj_rw_t *args)
 {
 	struct daos_csummer	*csummer = dc_cont_hdl2csummer(obj->cob_coh);
 	int			 i;
@@ -2124,8 +2123,14 @@ obj_update_csum_destroy(const struct dc_object *obj,
 	if (!daos_csummer_initialized(csummer))
 		return;
 
-	for (i = 0; i < args->nr; i++)
-		daos_csummer_free_dcbs(csummer, &(&args->iods[i])->iod_csums);
+	daos_csummer_free_dcbs(csummer, &args->dkey_csum);
+
+	for (i = 0; i < args->nr; i++) {
+		daos_iod_t *iod = &args->iods[i];
+
+		daos_csummer_free_dcbs(csummer, &iod->iod_csums);
+		daos_csummer_free_dcbs(csummer, &iod->iod_kcsum);
+	}
 }
 
 static int
@@ -2173,6 +2178,10 @@ obj_comp_cb(tse_task_t *task, void *data)
 	case DAOS_OBJ_RPC_QUERY_KEY:
 	case DAOS_OBJ_RPC_SYNC:
 		obj = *((struct dc_object **)data);
+		if (obj_auxi->opc == DAOS_OBJ_RPC_UPDATE ||
+		    obj_auxi->opc == DAOS_OBJ_RPC_FETCH)
+			/** checksums sent, need to destroy now */
+			obj_rw_csum_destroy(obj, dc_task_get_args(task));
 		if (task->dt_result != 0)
 			break;
 		if (d_list_empty(&obj_auxi->shard_task_head)) {
@@ -2241,9 +2250,6 @@ obj_comp_cb(tse_task_t *task, void *data)
 			*sync_args->epochs_p = NULL;
 			*sync_args->nr = 0;
 		}
-
-		if (obj_auxi->opc == DAOS_OBJ_RPC_UPDATE)
-			obj_update_csum_destroy(obj, dc_task_get_args(task));
 		if (obj_auxi->req_tgts.ort_shard_tgts !=
 		    obj_auxi->req_tgts.ort_tgts_inline)
 			D_FREE(obj_auxi->req_tgts.ort_shard_tgts);
@@ -2324,9 +2330,10 @@ shard_rw_prep(struct shard_auxi_args *shard_auxi, struct dc_object *obj,
 	return 0;
 }
 
-/** Ensures that checksum structures are NULL. If not will log a warning and
- *  set to NULL. This is needed because the checksum structures are visible
- *  in the public APIs but should not be used.
+/**
+ * Ensures that checksum structures are NULL. If not will log a warning and
+ * set to NULL. This is needed because the checksum structures are visible
+ * in the public APIs but should not be used.
  */
 static void
 obj_null_csum(const daos_obj_update_t *args) {
@@ -2340,26 +2347,83 @@ obj_null_csum(const daos_obj_update_t *args) {
 	}
 }
 
-static void
-obj_update_csums(const struct dc_object *obj, const daos_obj_update_t *args) {
+static int
+csum_obj_update(struct dc_object *obj, daos_obj_update_t *args)
+{
 	struct daos_csummer	*csummer = dc_cont_hdl2csummer(obj->cob_coh);
-	daos_iod_t		*iod;
 	int			 i;
+	int			 rc;
 
 	obj_null_csum(args);
 	if (!daos_csummer_initialized(csummer)) /** Not configured */
-		return;
+		return 0;
 
+	/** Calc 'd' key checksum */
+	rc = daos_csummer_calc_key(csummer, args->dkey, &args->dkey_csum);
+	if (rc != 0)
+		return rc;
+
+	if (DAOS_FAIL_CHECK(DAOS_CHECKSUM_UPDATE_DKEY_FAIL))
+		((char *) args->dkey->iov_buf)[0]++;
+
+	/** Calc 'a' key checksum and value checksum */
 	for (i = 0; i < args->nr; i++) {
-		iod = &args->iods[i];
+		daos_iod_t *iod = &args->iods[i];
 
 		if (!csum_iod_is_supported(csummer->dcs_chunk_size, iod))
 			continue;
-		daos_csummer_calc(csummer, &args->sgls[i],
+		rc = daos_csummer_calc(csummer, &args->sgls[i],
 				  iod, &iod->iod_csums);
+		if (rc != 0)
+			return rc;
+
 		if (DAOS_FAIL_CHECK(DAOS_CHECKSUM_UPDATE_FAIL))
 			((char *) iod->iod_csums->cs_csum)[0]++;
+
+		rc = daos_csummer_calc_key(csummer, &iod->iod_name,
+					   &iod->iod_kcsum);
+		if (rc != 0)
+			return rc;
+
+		if (DAOS_FAIL_CHECK(DAOS_CHECKSUM_UPDATE_AKEY_FAIL) &&
+		   iod->iod_name.iov_len > 0)
+			((uint8_t *) iod->iod_name.iov_buf)[0] += 2;
 	}
+
+	return 0;
+}
+
+static int
+csum_obj_fetch(const struct dc_object *obj, daos_obj_fetch_t *args)
+{
+	struct daos_csummer	*csummer = dc_cont_hdl2csummer(obj->cob_coh);
+	int			 i;
+	int			 rc;
+
+	if (!daos_csummer_initialized(csummer)) /** Not configured */
+		return 0;
+
+	rc = daos_csummer_calc_key(csummer, args->dkey, &args->dkey_csum);
+	if (rc != 0)
+		return rc;
+
+	if (DAOS_FAIL_CHECK(DAOS_CHECKSUM_FETCH_DKEY_FAIL))
+		((char *) args->dkey->iov_buf)[0]++;
+
+	for (i = 0; i < args->nr; i++) {
+		daos_iod_t *iod = &args->iods[i];
+
+		rc = daos_csummer_calc_key(csummer, &iod->iod_name,
+					   &iod->iod_kcsum);
+		if (rc != 0)
+			return rc;
+
+		if (DAOS_FAIL_CHECK(DAOS_CHECKSUM_FETCH_AKEY_FAIL) &&
+		   iod->iod_name.iov_len > 0)
+			((uint8_t *) iod->iod_name.iov_buf)[0] += 2;
+	}
+
+	return 0;
 }
 
 static int
@@ -2411,6 +2475,10 @@ do_dc_obj_fetch(tse_task_t *task, daos_obj_fetch_t *args,
 			      dkey_hash, obj_auxi->reasb_req.tgt_bitmap,
 			      map_ver, obj_auxi->to_leader,
 			      obj_auxi->spec_shard, &obj_auxi->req_tgts);
+	if (rc != 0)
+		D_GOTO(out_task, rc);
+
+	rc = csum_obj_fetch(obj, args);
 	if (rc != 0)
 		D_GOTO(out_task, rc);
 
@@ -2494,7 +2562,7 @@ dc_obj_update(tse_task_t *task)
 			      false, &obj_auxi->req_tgts);
 
 	if (!obj_auxi->io_retry)
-		obj_update_csums(obj, args);
+		csum_obj_update(obj, args);
 
 	if (rc)
 		goto out_task;

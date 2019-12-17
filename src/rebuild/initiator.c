@@ -759,7 +759,7 @@ rebuild_obj_ult(void *data)
 	char				 stack_buf[ITER_BUF_SIZE];
 	char				*buf = NULL;
 	daos_size_t			 buf_len;
-	struct dss_enum_arg		 enum_arg;
+	struct dss_enum_arg		 enum_arg = { 0 };
 	int				 rc;
 
 	tls = rebuild_pool_tls_lookup(arg->rpt->rt_pool_uuid,

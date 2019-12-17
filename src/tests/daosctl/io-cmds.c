@@ -200,9 +200,7 @@ ioreq_init(struct ioreq *req, daos_handle_t coh, daos_obj_id_t oid,
 		/* epoch descriptor */
 		req->iod[i].iod_eprs = req->erange[i];
 
-		req->iod[i].iod_kcsum.cs_csum = NULL;
-		req->iod[i].iod_kcsum.cs_buf_len = 0;
-		req->iod[i].iod_kcsum.cs_len = 0;
+		req->iod[i].iod_kcsum = NULL;
 		req->iod[i].iod_type = iod_type;
 
 	}

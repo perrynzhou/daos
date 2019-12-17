@@ -158,7 +158,7 @@ class Extent(ctypes.Structure):
 
 class DaosIODescriptor(ctypes.Structure):
     _fields_ = [("iod_name", IOV),
-                ("iod_kcsum", CheckSum),
+                ("iod_kcsum", ctypes.POINTER(CheckSum)),
                 ("iod_type", ctypes.c_int),
                 ("iod_size", ctypes.c_uint64),
                 ("iod_nr", ctypes.c_uint32),

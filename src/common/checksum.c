@@ -329,9 +329,14 @@ daos_csummer_update(struct daos_csummer *obj, uint8_t *buf, size_t buf_len)
 	int rc = 0;
 
 	if (C_TRACE_ENABLED()) {
-		C_TRACE("Buffer (len=%lu):\n", buf_len);
+		C_TRACE("Buffer (len=%lu) (type=%s): ", buf_len,
+			daos_csummer_get_name(obj));
 		trace_chars(buf, buf_len, 50);
 		C_TRACE("\n");
+	}
+	if (C_TRACE_ENABLED()) {
+		C_TRACE("CSUM BEFORE: ...");
+		daos_csummer_trace_csum(obj, obj->dcs_csum_buf);
 	}
 
 	if (obj->dcs_csum_buf && obj->dcs_csum_buf_size > 0)
@@ -594,6 +599,53 @@ daos_csummer_calc(struct daos_csummer *obj, d_sg_list_t *sgl,
 			 *pcsum_bufs);
 }
 
+/** Using the data from the iov, calculate the checksum */
+static int
+calc_for_iov(struct daos_csummer *csummer, daos_key_t *iov,
+	     uint8_t *csum_buf, uint16_t csum_buf_len)
+{
+	int rc;
+
+	memset(csum_buf, 0, csum_buf_len);
+
+	daos_csummer_set_buffer(csummer, csum_buf, csum_buf_len);
+	rc = daos_csummer_update(csummer, iov->iov_buf, iov->iov_len);
+	if (rc != 0)
+		return rc;
+	rc = daos_csummer_finish(csummer);
+	if (rc != 0)
+		return rc;
+
+	return 0;
+}
+
+int
+daos_csummer_calc_key(struct daos_csummer *csummer, daos_key_t *key,
+		      daos_csum_buf_t **p_dcb)
+{
+	daos_csum_buf_t *dcb;
+	uint16_t	 size = daos_csummer_get_csum_len(csummer);
+	int		 rc;
+	uint8_t		*dkey_csum_buf;
+
+	if (!daos_csummer_initialized(csummer))
+		return 0;
+
+	D_ALLOC(dcb, sizeof(*dcb) + size);
+	dkey_csum_buf = (uint8_t *) &dcb[1];
+
+	dcb_set(dcb, dkey_csum_buf, size, size, 1, DCB_NO_CSUM_CHUNK);
+	dcb->cs_type = daos_csummer_get_type(csummer);
+
+	rc = calc_for_iov(csummer, key, dkey_csum_buf, size);
+	if (rc == 0)
+		*p_dcb = dcb;
+	else
+		*p_dcb = NULL;
+
+	return rc;
+}
+
 void
 daos_csummer_free_dcbs(struct daos_csummer *obj,
 		       daos_csum_buf_t **p_cds)
@@ -604,8 +656,8 @@ daos_csummer_free_dcbs(struct daos_csummer *obj,
 }
 
 int
-daos_csummer_verify(struct daos_csummer *obj,
-		    daos_iod_t *iod, d_sg_list_t *sgl)
+daos_csummer_verify_iod(struct daos_csummer *obj,
+			daos_iod_t *iod, d_sg_list_t *sgl)
 {
 	daos_csum_buf_t		*csum_bufs;
 	int			 i;
@@ -628,6 +680,30 @@ daos_csummer_verify(struct daos_csummer *obj,
 done:
 	daos_csummer_free_dcbs(obj, &csum_bufs);
 	return rc;
+}
+
+int
+daos_csummer_verify_key(struct daos_csummer *obj, daos_key_t *iov,
+			daos_csum_buf_t *dcb)
+{
+	if (daos_csummer_initialized(obj) && dcb_is_valid(dcb)) {
+		uint32_t	csum_len = daos_csummer_get_csum_len(obj);
+		uint8_t		csum_verify[csum_len];
+		bool		match;
+
+		memset(csum_verify, 0, csum_len);
+		daos_csummer_set_buffer(obj, csum_verify, csum_len);
+		daos_csummer_update(obj, (*iov).iov_buf,
+				    (*iov).iov_len);
+		daos_csummer_finish(obj);
+
+		match = daos_csummer_csum_compare(obj, dcb->cs_csum,
+						  csum_verify, csum_len);
+		if (!match)
+			return -DER_CSUM;
+	}
+	return 0;
+
 }
 
 /**
@@ -884,7 +960,7 @@ daos_csum_check_sgl(daos_iod_t *iod, d_sg_list_t *sgl)
 		return -DER_MISC;
 	}
 
-	rc = daos_csummer_verify(csummer, iod, sgl);
+	rc = daos_csummer_verify_iod(csummer, iod, sgl);
 
 	daos_csummer_destroy(&csummer);
 

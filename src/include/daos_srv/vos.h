@@ -562,7 +562,7 @@ vos_obj_delete(daos_handle_t coh, daos_unit_oid_t oid);
  * \param epoch	[IN]	Epoch for the fetch. It will be ignored if epoch range
  *			is provided by \a iods.
  * \param dkey	[IN]	Distribution key.
- * \param nr	[IN]	Number of I/O descriptors in \a ios.
+ * \param iod_nr[IN]	Number of I/O descriptors in \a ios.
  * \param iods	[IN/OUT]
  *			Array of I/O descriptors. The returned record
  *			sizes are also restored in this parameter.
@@ -574,7 +574,7 @@ vos_obj_delete(daos_handle_t coh, daos_unit_oid_t oid);
  */
 int
 vos_fetch_begin(daos_handle_t coh, daos_unit_oid_t oid, daos_epoch_t epoch,
-		daos_key_t *dkey, unsigned int nr, daos_iod_t *iods,
+		daos_key_t *dkey, unsigned int iod_nr, daos_iod_t *iods,
 		bool size_fetch, daos_handle_t *ioh);
 
 /**
@@ -600,7 +600,7 @@ vos_fetch_end(daos_handle_t ioh, int err);
  * \param epoch	[IN]	Epoch for the update. It will be ignored if epoch
  *			range is provided by \a iods (kvl::kv_epr).
  * \param dkey	[IN]	Distribution key.
- * \param nr	[IN]	Number of I/O descriptors in \a iods.
+ * \param iod_nr[IN]	Number of I/O descriptors in \a iods.
  * \param iods	[IN]	Array of I/O descriptors.
  * \param ioh	[OUT]	The returned handle for the I/O.
  * \param dth	[IN]	Pointer to the DTX handle.
@@ -609,7 +609,7 @@ vos_fetch_end(daos_handle_t ioh, int err);
  */
 int
 vos_update_begin(daos_handle_t coh, daos_unit_oid_t oid, daos_epoch_t epoch,
-		 daos_key_t *dkey, unsigned int nr, daos_iod_t *iods,
+		 daos_key_t *dkey, unsigned int iod_nr, daos_iod_t *iods,
 		 daos_handle_t *ioh, struct dtx_handle *dth);
 
 /**

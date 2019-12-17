@@ -189,7 +189,7 @@ typedef struct {
 	/** akey for this iod */
 	daos_key_t		iod_name;
 	/** akey checksum */
-	daos_csum_buf_t		iod_kcsum;
+	daos_csum_buf_t		*iod_kcsum;
 	/*
 	 * Type of the value in an iod can be either a single type that is
 	 * always overwritten when updated, or it can be an array of EQUAL sized
@@ -655,12 +655,11 @@ daos_obj_list_dkey(daos_handle_t oh, daos_handle_t th, uint32_t *nr,
  *
  * \param[in,out]
  *		kds	[in]: preallocated array of \nr key descriptors. [out]:
- *			size of each individual key along with checksum type,
- *			size, and type stored just after the key in \a sgl.
+ *			size of each individual key in \a sgl.
  *
  * \param[in]	sgl	Scatter/gather list to store the akey list.
- *			All akeys are written contiguously with their checksum,
- *			actual boundaries can be calculated thanks to \a kds.
+ *			All akeys are written contiguously, actual boundaries
+ *			can be calculated thanks to \a kds.
  *
  * \param[in,out]
  *		anchor	Hash anchor for the next call, it should be set to

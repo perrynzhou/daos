@@ -92,7 +92,7 @@ ioreq_init(struct ioreq *req, daos_handle_t coh, daos_obj_id_t oid,
 		req->iod[i].iod_eprs = req->erange[i];
 
 		req->iod[i].iod_csums = NULL;
-		dcb_set_null(&req->iod[i].iod_kcsum);
+		req->iod[i].iod_kcsum = NULL;
 		req->iod[i].iod_type = iod_type;
 
 	}
@@ -1912,7 +1912,7 @@ next_step:
 
 	/** init I/O descriptor */
 	d_iov_set(&iod.iod_name, "akey", strlen("akey"));
-	dcb_set_null(&iod.iod_kcsum);
+	iod.iod_kcsum = NULL;
 	tmp_len = buf_len / 3;
 	recx[0].rx_idx = 0;
 	recx[0].rx_nr  = tmp_len;
@@ -2034,7 +2034,7 @@ read_empty_records_internal(void **state, unsigned int size)
 
 	/** init I/O descriptor */
 	d_iov_set(&iod.iod_name, "akey", strlen("akey"));
-	dcb_set_null(&iod.iod_kcsum);
+	iod.iod_kcsum = NULL;
 	iod.iod_nr	= 1;
 	iod.iod_size	= 1;
 	recx.rx_idx	= (size/2) * sizeof(int);
@@ -2144,7 +2144,7 @@ fetch_size(void **state)
 
 		/** init I/O descriptor */
 		d_iov_set(&iod[i].iod_name, akey[i], strlen(akey[i]));
-		dcb_set_null(&iod[i].iod_kcsum);
+		iod[i].iod_kcsum = NULL;
 		iod[i].iod_nr		= 1;
 		iod[i].iod_size		= size * (i+1);
 		iod[i].iod_recxs	= NULL;
@@ -2993,7 +2993,7 @@ update_overlapped_recxs(void **state)
 
 	/** init I/O descriptor */
 	d_iov_set(&iod.iod_name, "akey", strlen("akey"));
-	dcb_set_null(&iod.iod_kcsum);
+	iod.iod_kcsum = NULL;
 	iod.iod_size	= 1;
 	iod.iod_recxs	= recx;
 	iod.iod_eprs	= NULL;
@@ -3294,7 +3294,7 @@ punch_then_lookup(void **state)
 
 	d_iov_set(&iod.iod_name, "akey", strlen("akey"));
 	d_iov_set(&dkey, "dkey", strlen("dkey"));
-	dcb_set_null(&iod.iod_kcsum);
+	iod.iod_kcsum = NULL;
 	iod.iod_nr	= 10;
 	iod.iod_size	= 1;
 	iod.iod_recxs	= recx;
@@ -3351,7 +3351,7 @@ split_sgl_internal(void **state, int size)
 
 	/** init I/O descriptor */
 	d_iov_set(&iod.iod_name, "akey", strlen("akey"));
-	dcb_set_null(&iod.iod_kcsum);
+	iod.iod_kcsum = NULL;
 	iod.iod_nr	= 1;
 	iod.iod_size	= size;
 	recx.rx_idx	= 0;

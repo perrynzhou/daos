@@ -437,6 +437,7 @@ typedef struct {
 	daos_handle_t		oh;
 	daos_handle_t		th;
 	daos_key_t		*dkey;
+	daos_csum_buf_t		*dkey_csum;
 	unsigned int		nr;
 	daos_iod_t		*iods;
 	d_sg_list_t		*sgls;
