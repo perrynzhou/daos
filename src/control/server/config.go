@@ -293,7 +293,6 @@ func newDefaultConfiguration(ext External) *Configuration {
 		ControlPort:        defaultPort,
 		TransportConfig:    security.DefaultServerTransportConfig(),
 		Hyperthreads:       false,
-		NrHugepages:        1024,
 		Path:               defaultConfigPath,
 		ControlLogMask:     ControlLogLevel(logging.LogLevelInfo),
 		ext:                ext,

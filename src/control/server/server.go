@@ -103,6 +103,22 @@ func Start(log *logging.LeveledLogger, cfg *Configuration) error {
 		return errors.Wrap(err, "unable to resolve daos_server control address")
 	}
 
+	bdevProvider := bdev.DefaultProvider(log)
+
+	runningUser, err := user.Current()
+	if err != nil {
+		return errors.Wrap(err, "unable to lookup current user")
+	}
+	// Perform an automatic prepare based on the values in the config file.
+	prepReq := bdev.PrepareRequest{
+		HugePageCount: cfg.NrHugepages,
+		TargetUser:    runningUser.Username,
+		PCIWhitelist:  strings.Join(cfg.BdevInclude, ","),
+	}
+	if _, err := bdevProvider.Prepare(prepReq); err != nil {
+		log.Errorf("automatic NVMe prepare failed (check configuration?)\n%s", err)
+	}
+
 	hugePages, err := getHugePageInfo()
 	if err != nil {
 		return errors.Wrap(err, "unable to read system hugepage info")
@@ -127,7 +143,6 @@ func Start(log *logging.LeveledLogger, cfg *Configuration) error {
 	// this will record the DAOS system membership.
 	membership := common.NewMembership(log)
 	scmProvider := scm.DefaultProvider(log)
-	bdevProvider := bdev.DefaultProvider(log)
 	harness := NewIOServerHarness(log)
 	for i, srvCfg := range cfg.Servers {
 		if i+1 > maxIoServers {
@@ -138,6 +153,8 @@ func Start(log *logging.LeveledLogger, cfg *Configuration) error {
 		// the hugepage memory among the instances.
 		if len(cfg.Servers) > 1 && cfgHasBdev(cfg) {
 			srvCfg.Storage.Bdev.MemSize = hugePages.FreeMB() / min(len(cfg.Servers), maxIoServers)
+			// reserve a little for daos_admin
+			srvCfg.Storage.Bdev.MemSize -= srvCfg.Storage.Bdev.MemSize / 16
 		}
 
 		// Each instance must have a unique shmid in order to run as SPDK primary.
@@ -160,22 +177,6 @@ func Start(log *logging.LeveledLogger, cfg *Configuration) error {
 		if err := harness.AddInstance(srv); err != nil {
 			return err
 		}
-	}
-
-	runningUser, err := user.Current()
-	if err != nil {
-		return errors.Wrap(err, "unable to lookup current user")
-	}
-	// Perform an automatic prepare based on the values in the config file.
-	// TODO (DAOS-3404): Move this into the loop above to perform a prepare
-	// for each ioserver.
-	prepReq := bdev.PrepareRequest{
-		HugePageCount: cfg.NrHugepages,
-		TargetUser:    runningUser.Username,
-		PCIWhitelist:  strings.Join(cfg.BdevInclude, ","),
-	}
-	if _, err := bdevProvider.Prepare(prepReq); err != nil {
-		log.Errorf("automatic NVMe prepare failed (check configuration?)\n%s", err)
 	}
 
 	// Single daos_server dRPC server to handle all iosrv requests
