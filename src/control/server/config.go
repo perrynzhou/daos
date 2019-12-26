@@ -30,6 +30,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/pkg/errors"
 	yaml "gopkg.in/yaml.v2"
@@ -52,6 +53,7 @@ const (
 	msgConfigNoPath          = "no config path set"
 	msgConfigNoServers       = "no servers specified in config"
 	msgConfigBadAccessPoints = "only a single access point is currently supported"
+	msgConfigBadPort         = "please specify a nonzero control port"
 )
 
 type networkProviderValidation func(string, string) error
@@ -430,6 +432,15 @@ func (c *Configuration) Validate() (err error) {
 	// only single access point valid for now
 	if len(c.AccessPoints) != 1 {
 		return errors.New(msgConfigBadAccessPoints)
+	}
+	// apply configured control port if not supplied
+	for i := range c.AccessPoints {
+		if !hasPort(c.AccessPoints[i]) {
+			c.AccessPoints[i] += fmt.Sprintf(":%d", c.ControlPort)
+		}
+		if strings.Split(c.AccessPoints[i], ":")[1] == "0" {
+			return errors.New(msgConfigBadPort)
+		}
 	}
 
 	if len(c.Servers) == 0 {

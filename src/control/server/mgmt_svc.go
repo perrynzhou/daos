@@ -25,7 +25,6 @@ package server
 
 import (
 	"net"
-	"os/exec"
 	"strconv"
 	"strings"
 
@@ -40,25 +39,6 @@ import (
 	"github.com/daos-stack/daos/src/control/server/ioserver"
 	"github.com/daos-stack/daos/src/control/system"
 )
-
-// CheckReplica verifies if this server is supposed to host an MS replica,
-// only performing the check and printing the result for now.
-func CheckReplica(lis net.Listener, accessPoints []string, srv *exec.Cmd) (msReplicaCheck string, err error) {
-	isReplica, bootstrap, err := checkMgmtSvcReplica(lis.Addr().(*net.TCPAddr), accessPoints)
-	if err != nil {
-		_ = srv.Process.Kill()
-		return
-	}
-
-	if isReplica {
-		msReplicaCheck = " as access point"
-		if bootstrap {
-			msReplicaCheck += " (bootstrap)"
-		}
-	}
-
-	return
-}
 
 // getInterfaceAddrs enables TestCheckMgmtSvcReplica to replace the real
 // interface query with a sample data set.
