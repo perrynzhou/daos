@@ -66,7 +66,7 @@ extern hwloc_bitmap_t	core_allocation_bitmap;
 extern hwloc_obj_t	numa_obj;
 /** number of cores in the given NUMA node */
 extern int		dss_num_cores_numa_node;
-/** Number of offload XS per target (1 or 2)*/
+/** Number of offload XS */
 extern unsigned int	dss_tgt_offload_xs_nr;
 /** number of system XS */
 extern unsigned int	dss_sys_xs_nr;
@@ -96,25 +96,16 @@ void ds_iv_fini(void);
 
 /** To schedule ULT on caller's self XS */
 #define DSS_XS_SELF		(-1)
-/** Number of XS for each VOS target (main XS and its offload XS) */
-#define DSS_XS_NR_PER_TGT	(dss_tgt_offload_xs_nr + 1)
 /** Total number of XS */
 #define DSS_XS_NR_TOTAL						\
-	(dss_tgt_nr * DSS_XS_NR_PER_TGT + dss_sys_xs_nr)
-/** Number of cart contexts for each VOS target */
-#define DSS_CTX_NR_PER_TGT	(dss_tgt_offload_xs_nr == 0 ? 1 : 2)
+	(dss_sys_xs_nr + dss_tgt_nr + dss_tgt_offload_xs_nr)
 /** Total number of cart contexts created */
 #define DSS_CTX_NR_TOTAL					\
-	(dss_tgt_nr * DSS_CTX_NR_PER_TGT + dss_sys_xs_nr)
+	(DAOS_TGT0_OFFSET + dss_tgt_nr +			\
+	 (dss_tgt_offload_xs_nr > dss_tgt_nr ? dss_tgt_nr :	\
+	  dss_tgt_offload_xs_nr))
 /** main XS id of (vos) tgt_id */
-#define DSS_MAIN_XS_ID(tgt_id)					\
-	(((tgt_id) * DSS_XS_NR_PER_TGT) + dss_sys_xs_nr)
-/**
- * The offset of the XS in the target's XS set -
- * 0 is the main XS, and 1 is the first offload XS and so on.
- */
-#define DSS_XS_OFFSET_IN_TGT(xs_id)				\
-	(((xs_id) - dss_sys_xs_nr) % DSS_XS_NR_PER_TGT)
+#define DSS_MAIN_XS_ID(tgt_id)	((tgt_id) + dss_sys_xs_nr)
 
 /**
  * Get the service xstream xs_id to schedule the ULT for specific ULT type and
@@ -135,11 +126,27 @@ dss_ult_xs(int ult_type, int tgt_id)
 	switch (ult_type) {
 	case DSS_ULT_IOFW:
 	case DSS_ULT_MISC:
-		return (DSS_MAIN_XS_ID(tgt_id) + 1) % DSS_XS_NR_TOTAL;
+		if (dss_tgt_offload_xs_nr >= dss_tgt_nr)
+			return (dss_sys_xs_nr + dss_tgt_nr + tgt_id);
+		if (dss_tgt_offload_xs_nr > 0)
+			return (dss_sys_xs_nr + dss_tgt_nr +
+				tgt_id % dss_tgt_offload_xs_nr);
+		else
+			return ((DSS_MAIN_XS_ID(tgt_id) + 1) % dss_tgt_nr +
+				dss_sys_xs_nr);
 	case DSS_ULT_EC:
 	case DSS_ULT_CHECKSUM:
 	case DSS_ULT_COMPRESS:
-		return DSS_MAIN_XS_ID(tgt_id) + dss_tgt_offload_xs_nr;
+		if (dss_tgt_offload_xs_nr > dss_tgt_nr)
+			return (dss_sys_xs_nr + 2 * dss_tgt_nr +
+				(tgt_id % (dss_tgt_offload_xs_nr -
+					   dss_tgt_nr)));
+		if (dss_tgt_offload_xs_nr > 0)
+			return (dss_sys_xs_nr + dss_tgt_nr +
+				tgt_id % dss_tgt_offload_xs_nr);
+		else
+			return (DSS_MAIN_XS_ID(tgt_id) + 1) % dss_tgt_nr +
+			       dss_sys_xs_nr;
 	case DSS_ULT_POOL_SRV:
 	case DSS_ULT_RDB:
 	case DSS_ULT_DRPC_HANDLER:
@@ -201,10 +208,11 @@ dss_xs2tgt(int xs_id)
 		  "invalid xs_id %d, dss_tgt_nr %d, "
 		  "dss_tgt_offload_xs_nr %d.\n",
 		  xs_id, dss_tgt_nr, dss_tgt_offload_xs_nr);
-	if (xs_id < dss_sys_xs_nr)
+	if (xs_id < dss_sys_xs_nr ||
+	    xs_id >= dss_sys_xs_nr + dss_tgt_nr)
 		return -1;
 
-	return (xs_id - dss_sys_xs_nr) / DSS_XS_NR_PER_TGT;
+	return xs_id - dss_sys_xs_nr;
 }
 
 #endif /* __DAOS_SRV_INTERNAL__ */
