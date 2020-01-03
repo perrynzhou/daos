@@ -86,6 +86,11 @@ daos_prop_free(daos_prop_t *prop)
 			if (entry->dpe_val_ptr)
 				D_FREE(entry->dpe_val_ptr);
 			break;
+		case DAOS_PROP_PO_SVC_LIST:
+			if (entry->dpe_val_ptr)
+				d_rank_list_free(
+					(d_rank_list_t *)entry->dpe_val_ptr);
+			break;
 		default:
 			break;
 		};
@@ -234,6 +239,8 @@ daos_prop_valid(daos_prop_t *prop, bool pool, bool input)
 				prop->dpp_entries[i].dpe_str))
 				return false;
 			break;
+		case DAOS_PROP_PO_SVC_LIST:
+			break;
 		/* container properties */
 		case DAOS_PROP_CO_LABEL:
 			if (!daos_prop_label_valid(
@@ -315,6 +322,9 @@ daos_prop_dup(daos_prop_t *prop, bool pool)
 	struct daos_prop_entry	*entry, *entry_dup;
 	int			 i;
 	struct daos_acl		*acl_ptr;
+	const d_rank_list_t	*svc_list;
+	d_rank_list_t		*dst_list;
+	int			rc;
 
 	if (!daos_prop_valid(prop, pool, true))
 		return NULL;
@@ -360,6 +370,16 @@ daos_prop_dup(daos_prop_t *prop, bool pool)
 				return NULL;
 			}
 			break;
+		case DAOS_PROP_PO_SVC_LIST:
+			svc_list = entry->dpe_val_ptr;
+
+			rc = d_rank_list_dup(&dst_list, svc_list);
+			if (rc) {
+				D_ERROR("failed dup rank list\n");
+				return NULL;
+			}
+			entry_dup->dpe_val_ptr = dst_list;
+			break;
 		default:
 			entry_dup->dpe_val = entry->dpe_val;
 			break;
@@ -404,7 +424,9 @@ daos_prop_copy(daos_prop_t *prop_req, daos_prop_t *prop_reply)
 	bool			 acl_alloc = false;
 	bool			 owner_alloc = false;
 	bool			 group_alloc = false;
+	bool			 svc_list_alloc = false;
 	struct daos_acl		*acl;
+	d_rank_list_t		*dst_list;
 	uint32_t		 type;
 	int			 i;
 	int			 rc = 0;
@@ -463,6 +485,14 @@ daos_prop_copy(daos_prop_t *prop_req, daos_prop_t *prop_reply)
 			if (entry_req->dpe_str == NULL)
 				D_GOTO(out, rc = -DER_NOMEM);
 			group_alloc = true;
+		} else if (type == DAOS_PROP_PO_SVC_LIST) {
+			d_rank_list_t *svc_list = entry_reply->dpe_val_ptr;
+
+			rc = d_rank_list_dup(&dst_list, svc_list);
+			if (rc)
+				D_GOTO(out, rc);
+			svc_list_alloc = true;
+			entry_req->dpe_val_ptr = dst_list;
 		} else {
 			entry_req->dpe_val = entry_reply->dpe_val;
 		}
@@ -490,9 +520,14 @@ out:
 						DAOS_PROP_PO_OWNER_GROUP);
 			D_FREE(entry_req->dpe_str);
 		}
-		if (entries_alloc) {
-			D_FREE(prop_req->dpp_entries);
+		if (svc_list_alloc) {
+			entry_req = daos_prop_entry_get(prop_req,
+						DAOS_PROP_PO_SVC_LIST);
+			d_rank_list_free(entry_req->dpe_val_ptr);
 		}
+
+		if (entries_alloc)
+			D_FREE(prop_req->dpp_entries);
 	}
 	return rc;
 }

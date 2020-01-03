@@ -77,6 +77,9 @@ struct daos_prop_entry pool_prop_entries_default[DAOS_PROP_PO_NUM] = {
 	}, {
 		.dpe_type	= DAOS_PROP_PO_OWNER_GROUP,
 		.dpe_str	= "nobody@",
+	}, {
+		.dpe_type	= DAOS_PROP_PO_SVC_LIST,
+		.dpe_val_ptr	= NULL,
 	}
 };
 
