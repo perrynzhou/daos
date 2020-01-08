@@ -44,6 +44,7 @@
 def arch = ""
 def sanitized_JOB_NAME = JOB_NAME.toLowerCase().replaceAll('/', '-').replaceAll('%2f', '-')
 
+def daos_packages_version = ""
 def el7_component_repos = ""
 def component_repos = ""
 def daos_repo = "daos@${env.BRANCH_NAME}:${env.BUILD_NUMBER}"
@@ -249,6 +250,10 @@ pipeline {
                                            cp -r . $OLDPWD/artifacts/centos7/)
                                           createrepo artifacts/centos7/
                                           cat $mockroot/result/{root,build}.log'''
+                               script {
+                                   daos_packages_version = sh(script: 'rpm --qf %{version}-%{release}.%{arch} -qp artifacts/centos7/daos-server-*.x86_64.rpm',
+                                      returnStdout: true)
+                               }
                             publishToRepository product: 'daos',
                                                 format: 'yum',
                                                 maturity: 'stable',
@@ -1029,7 +1034,8 @@ pipeline {
                                        node_count: 9,
                                        snapshot: true,
                                        inst_repos: el7_daos_repos,
-                                       inst_rpms: 'openmpi3 hwloc cart-' + env.CART_COMMIT + ' ' +
+                                       inst_rpms: 'daos-' + daos_packages_version +
+                                                  'openmpi3 hwloc cart-' + env.CART_COMMIT + ' ' +
                                                   functional_rpms + ' ndctl'
                         runTest stashes: [ 'CentOS-install', 'CentOS-build-vars' ],
                                 script: '''test_tag=$(git show -s --format=%B | sed -ne "/^Test-tag:/s/^.*: *//p")
@@ -1105,14 +1111,16 @@ pipeline {
                                        node_count: 1,
                                        snapshot: true,
                                        inst_repos: el7_daos_repos,
-                                       inst_rpms: 'openmpi3 hwloc cart-' + env.CART_COMMIT + ' ' +
+                                       inst_rpms: 'daos-' + daos_packages_version +
+                                                  'openmpi3 hwloc cart-' + env.CART_COMMIT + ' ' +
                                                   functional_rpms + ' ndctl'
                         // Then just reboot the physical nodes
                         provisionNodes NODELIST: env.NODELIST,
                                        node_count: 9,
                                        power_only: true,
                                        inst_repos: el7_daos_repos,
-                                       inst_rpms: 'openmpi3 hwloc cart-' + env.CART_COMMIT + ' ' +
+                                       inst_rpms: 'daos-' + daos_packages_version +
+                                                  'openmpi3 hwloc cart-' + env.CART_COMMIT + ' ' +
                                                   functional_rpms + ' ndctl'
                         runTest stashes: [ 'CentOS-install', 'CentOS-build-vars' ],
                                 script: '''test_tag=$(git show -s --format=%B | sed -ne "/^Test-tag-hw:/s/^.*: *//p")
