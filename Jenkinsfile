@@ -1044,6 +1044,7 @@ pipeline {
                                        snapshot: true,
                                        inst_repos: el7_daos_repos,
                                        inst_rpms: 'daos-' + daos_packages_version +
+                                                  ' daos-client-' + daos_packages_version +
                                                   ' openmpi3 hwloc cart-' + env.CART_COMMIT + ' ' +
                                                   functional_rpms + ' ndctl'
                         runTest stashes: [ 'CentOS-install', 'CentOS-build-vars' ],
@@ -1121,6 +1122,7 @@ pipeline {
                                        snapshot: true,
                                        inst_repos: el7_daos_repos,
                                        inst_rpms: 'daos-' + daos_packages_version +
+                                                  ' daos-client-' + daos_packages_version +
                                                   ' openmpi3 hwloc cart-' + env.CART_COMMIT + ' ' +
                                                   functional_rpms + ' ndctl'
                         // Then just reboot the physical nodes
@@ -1129,6 +1131,7 @@ pipeline {
                                        power_only: true,
                                        inst_repos: el7_daos_repos,
                                        inst_rpms: 'daos-' + daos_packages_version +
+                                                  ' daos-client-' + daos_packages_version +
                                                   ' openmpi3 hwloc cart-' + env.CART_COMMIT + ' ' +
                                                   functional_rpms + ' ndctl'
                         runTest stashes: [ 'CentOS-install', 'CentOS-build-vars' ],
