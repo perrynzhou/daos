@@ -149,6 +149,12 @@ pipeline {
             }
             parallel {
                 stage('checkpatch') {
+                    when {
+                      beforeAgent true
+                      expression {
+                        ! commitPragma(pragma: 'Skip-checkpatch').contains('true')
+                      }
+                    }
                     agent {
                         dockerfile {
                             filename 'Dockerfile.centos.7'
