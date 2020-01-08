@@ -519,6 +519,7 @@ daos_iods_link_dcbs(daos_iod_t *iods, uint32_t iods_nr, daos_csum_buf_t *dcbs,
 	}
 }
 
+/* [todo-ryon]: remove  */
 void
 daos_iods_unlink_dcbs(daos_iod_t *iods, uint32_t iods_nr)
 {

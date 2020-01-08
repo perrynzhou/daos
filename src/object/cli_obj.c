@@ -554,7 +554,7 @@ obj_shard2tgtid(struct dc_object *obj, uint32_t shard)
 }
 
 /**
- * Create reasb_req and set iod'svalue, akey reuse buffer from input
+ * Create reasb_req and set iod's value, akey reuse buffer from input
  * iod, iod_type/iod_size assign as input iod, iod_kcsum/iod_nr/iod_recx/
  * iod_csums/iod_eprs array will set as 0/NULL.
  */
@@ -2348,6 +2348,7 @@ shard_rw_prep(struct shard_auxi_args *shard_auxi, struct dc_object *obj,
 	return 0;
 }
 
+/* [todo-ryon]: remove  */
 /** Ensures that checksum structures are NULL. If not will log a warning and
  *  set to NULL. This is needed because the checksum structures are visible
  *  in the public APIs but should not be used.

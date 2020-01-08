@@ -66,6 +66,62 @@ enum DAOS_CSUM_TYPE {
 	CSUM_TYPE_END = 4,
 };
 
+/* [todo-ryon]: maybe daos_value_csum? */
+struct daos_csum_info {
+	/** buffer to store the checksums */
+	uint8_t		*cs_csum;
+	/** number of checksums stored in buffer. Only 1 for SV */
+	uint32_t	 cs_nr;
+	/** type of checksum */
+	uint16_t	 cs_type;
+	/** length of each checksum in bytes */
+	uint16_t	 cs_len;
+	/** length of entire buffer (cs_csum). buf_len can be larger than
+	*  nr * len, but never smaller
+	*/
+	uint32_t	 cs_buf_len;
+	/** bytes of data each checksum verifies (if value type is array) */
+	uint32_t	 cs_chunksize;
+};
+
+
+/** 1 array for each iod */
+#define DAOS_CSUM_ARRAY_INLINE	4
+struct daos_csum_array {
+	struct daos_csum_info	*dca_infos;
+	uint32_t		 dca_infos_nr;
+	uint32_t		 dca_infos_nr_out;
+	struct daos_csum_info	 dca_inline_infos[DAOS_CSUM_ARRAY_INLINE];
+};
+
+struct daos_iod_csums {
+	struct daos_csum_info	akey_csum;
+	struct daos_csum_array	value_csums; /** csum for each recx for array type */
+};
+
+static inline void dca_init(struct daos_csum_array *obj)
+{
+	memset(obj, 0, sizeof (*obj));
+	obj->dca_infos = obj->dca_inline_infos;
+	obj->dca_infos_nr = DAOS_CSUM_ARRAY_INLINE;
+}
+
+static inline void dca_incr(struct daos_csum_array *obj)
+{
+	if (obj->dca_infos_nr_out == obj->dca_infos_nr) {
+		/** realloc */
+	}
+	obj->dca_infos_nr_out ++;
+}
+
+static inline void dca_fini(struct daos_csum_array *obj)
+{
+	if (obj->dca_infos_nr > DAOS_CSUM_ARRAY_INLINE) {
+		free(obj->dca_infos); /* [todo-ryon]: D_FREE? */
+	}
+}
+
+
 /** Lookup the appropriate CSUM_TYPE given daos container property */
 enum DAOS_CSUM_TYPE daos_contprop2csumtype(int contprop_csum_val);
 
