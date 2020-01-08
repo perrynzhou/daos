@@ -1044,7 +1044,7 @@ pipeline {
                                        snapshot: true,
                                        inst_repos: el7_daos_repos,
                                        inst_rpms: 'daos-' + daos_packages_version +
-                                                  'openmpi3 hwloc cart-' + env.CART_COMMIT + ' ' +
+                                                  ' openmpi3 hwloc cart-' + env.CART_COMMIT + ' ' +
                                                   functional_rpms + ' ndctl'
                         runTest stashes: [ 'CentOS-install', 'CentOS-build-vars' ],
                                 script: '''test_tag=$(git show -s --format=%B | sed -ne "/^Test-tag:/s/^.*: *//p")
@@ -1121,7 +1121,7 @@ pipeline {
                                        snapshot: true,
                                        inst_repos: el7_daos_repos,
                                        inst_rpms: 'daos-' + daos_packages_version +
-                                                  'openmpi3 hwloc cart-' + env.CART_COMMIT + ' ' +
+                                                  ' openmpi3 hwloc cart-' + env.CART_COMMIT + ' ' +
                                                   functional_rpms + ' ndctl'
                         // Then just reboot the physical nodes
                         provisionNodes NODELIST: env.NODELIST,
@@ -1129,7 +1129,7 @@ pipeline {
                                        power_only: true,
                                        inst_repos: el7_daos_repos,
                                        inst_rpms: 'daos-' + daos_packages_version +
-                                                  'openmpi3 hwloc cart-' + env.CART_COMMIT + ' ' +
+                                                  ' openmpi3 hwloc cart-' + env.CART_COMMIT + ' ' +
                                                   functional_rpms + ' ndctl'
                         runTest stashes: [ 'CentOS-install', 'CentOS-build-vars' ],
                                 script: '''test_tag=$(git show -s --format=%B | sed -ne "/^Test-tag-hw:/s/^.*: *//p")
